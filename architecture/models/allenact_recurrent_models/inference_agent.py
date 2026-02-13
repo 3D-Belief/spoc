@@ -14,9 +14,9 @@ from allenact.utils import spaces_utils as su
 from allenact.utils.inference import InferenceAgent
 from allenact.utils.tensor_utils import batch_observations
 
-from utils.constants.stretch_initialization_utils import ALL_STRETCH_ACTIONS
-from utils.string_utils import convert_string_to_byte
-from utils.transformation_util import get_transformation, sample_a_specific_transform
+from spoc_utils.constants.stretch_initialization_utils import ALL_STRETCH_ACTIONS
+from spoc_utils.string_utils import convert_string_to_byte
+from spoc_utils.transformation_util import get_transformation, sample_a_specific_transform
 
 
 class InferenceAgentSPOC(InferenceAgent):

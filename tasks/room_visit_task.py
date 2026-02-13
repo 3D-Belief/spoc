@@ -9,8 +9,8 @@ from typing_extensions import Literal
 
 from environment.stretch_controller import StretchController
 from tasks.abstract_task import AbstractSPOCTask
-from utils.distance_calculation_utils import position_dist
-from utils.type_utils import RewardConfig, THORActions
+from spoc_utils.distance_calculation_utils import position_dist
+from spoc_utils.type_utils import RewardConfig, THORActions
 from training.online.reward.reward_shaper import RoomVisitRewardShaper
 
 

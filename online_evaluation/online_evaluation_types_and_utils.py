@@ -3,9 +3,9 @@ from typing import TypedDict, Literal, List, Dict, Any, Union, TYPE_CHECKING
 
 import numpy as np
 
-from utils.data_generation_utils.navigation_utils import get_room_id_from_location
-from utils.task_type_mapping_utils import map_task_type, map_task_spec
-from utils.type_utils import REGISTERED_TASK_PARAMS
+from spoc_utils.data_generation_utils.navigation_utils import get_room_id_from_location
+from spoc_utils.task_type_mapping_utils import map_task_type, map_task_spec
+from spoc_utils.type_utils import REGISTERED_TASK_PARAMS
 
 if TYPE_CHECKING:
     from tasks.task_specs import TaskSpec

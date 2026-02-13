@@ -12,7 +12,7 @@ from allenact.embodiedai.models.visual_nav_models import (
 from gym.spaces import Dict as SpaceDict
 from transformers import T5EncoderModel, AutoTokenizer
 
-from utils.string_utils import convert_byte_to_string
+from spoc_utils.string_utils import convert_byte_to_string
 
 
 class DinoTensorNavActorCritic(VisualNavActorCritic):

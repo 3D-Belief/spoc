@@ -11,12 +11,12 @@ from allenact.utils.experiment_utils import set_seed
 from torch.distributions.utils import lazy_property
 
 from tasks.abstract_task import AbstractSPOCTask
-from utils.constants.stretch_initialization_utils import HORIZON, PHYSICS_SETTLING_TIME
-from utils.data_generation_utils.exception_utils import (
+from spoc_utils.constants.stretch_initialization_utils import HORIZON, PHYSICS_SETTLING_TIME
+from spoc_utils.data_generation_utils.exception_utils import (
     HouseInvalidForTaskException,
     TaskSamplerInInvalidStateError,
 )
-from utils.type_utils import Vector3, AbstractTaskArgs, KeyedDefaultDict
+from spoc_utils.type_utils import Vector3, AbstractTaskArgs, KeyedDefaultDict
 
 if TYPE_CHECKING:
     from environment.stretch_controller import StretchController

@@ -3,11 +3,11 @@ from typing import Dict, Any
 
 from torch.distributions.utils import lazy_property
 
-from utils.constants.object_constants import (
+from spoc_utils.constants.object_constants import (
     AI2THOR_OBJECT_TYPE_TO_WORDNET_SYNSET,
     AI2THOR_OBJECT_TYPE_TO_MOST_SPECIFIC_WORDNET_LEMMA,
 )
-from utils.objaverse_annotation import get_objaverse_annotations
+from spoc_utils.objaverse_annotation import get_objaverse_annotations
 
 
 class SPOCObject(dict):

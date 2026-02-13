@@ -19,7 +19,7 @@ from gym.spaces import Dict as SpaceDict
 from open_clip import create_model_from_pretrained
 from open_clip import get_tokenizer
 
-from utils.string_utils import convert_byte_to_string
+from spoc_utils.string_utils import convert_byte_to_string
 
 
 class SigLIPTensorNavActorCritic(VisualNavActorCritic):

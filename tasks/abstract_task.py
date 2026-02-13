@@ -19,14 +19,14 @@ from allenact.base_abstractions.misc import RLStepResult
 from allenact.base_abstractions.sensor import Sensor
 from allenact.base_abstractions.task import Task
 
-from utils.type_utils import RewardConfig, THORActions
-from utils.string_utils import (
+from spoc_utils.type_utils import RewardConfig, THORActions
+from spoc_utils.string_utils import (
     get_natural_language_spec,
     json_templated_task_string,
 )
-from utils.data_generation_utils.navigation_utils import get_room_id_from_location
-from utils.distance_calculation_utils import position_dist
-from utils.sel_utils import sel_metric
+from spoc_utils.data_generation_utils.navigation_utils import get_room_id_from_location
+from spoc_utils.distance_calculation_utils import position_dist
+from spoc_utils.sel_utils import sel_metric
 
 
 class AbstractSPOCTask(Task["StretchController"]):

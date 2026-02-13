@@ -4,7 +4,7 @@ from allenact.utils.misc_utils import prepare_locals_for_super
 from allenact_plugins.robothor_plugin.robothor_tasks import spl_metric
 
 from tasks.abstract_task import AbstractSPOCTask
-from utils.data_generation_utils.navigation_utils import (
+from spoc_utils.data_generation_utils.navigation_utils import (
     is_any_object_sufficiently_visible_and_in_center_frame,
 )
 
@@ -19,7 +19,7 @@ from allenact.base_abstractions.sensor import Sensor
 from allenact.utils.system import get_logger
 from allenact_plugins.ithor_plugin.ithor_environment import IThorEnvironment
 
-from utils.type_utils import RewardConfig
+from spoc_utils.type_utils import RewardConfig
 from training.online.reward.reward_shaper import ObjectNavRewardShaper
 
 if TYPE_CHECKING:

@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+  - _self_
+episode_root: /home/ubuntu/jianwen-us-midwest-1/shulab-jhu/codebase/embodied_tasks/spoc/data/spoc_trajectories_val
+close_enough_distance: 1.2
+alignment_threshold: 20 # degrees allowed between agent heading and object center
+max_steps: 25
+trajectory:
+  save: True
+  save_path: /home/ubuntu/jianwen-us-midwest-1/shulab-jhu/codebase/embodied_tasks/spoc/data/object_searching
+  image_keys: ['rgb']
+  string_keys: ['action', 'position', 'rotation', 'distance_to_goal', 'distance_traveled', 'angle_turned']

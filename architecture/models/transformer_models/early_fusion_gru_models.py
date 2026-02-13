@@ -20,9 +20,9 @@ from architecture.models.transformer_models.text_cond_visual_encoder import (
     TransformerConfig,
 )
 from training.offline.train_utils import load_pl_ckpt
-from utils.constants.stretch_initialization_utils import ALL_STRETCH_ACTIONS
-from utils.nn_utils import sample_action_index_from_logits
-from utils.sensor_constant_utils import is_a_visual_sensor, is_a_non_visual_sensor
+from spoc_utils.constants.stretch_initialization_utils import ALL_STRETCH_ACTIONS
+from spoc_utils.nn_utils import sample_action_index_from_logits
+from spoc_utils.sensor_constant_utils import is_a_visual_sensor, is_a_non_visual_sensor
 
 EarlyFusionCnnRNNPreprocessorConfig = PreprocessorConfig
 EarlyFusionCnnRNNPreprocessor = Preprocessor

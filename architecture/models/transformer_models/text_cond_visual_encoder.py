@@ -1,6 +1,6 @@
 import math
 
-# from utils.transformation_util import get_full_transformation_list, sample_a_specific_transform
+# from spoc_utils.transformation_util import get_full_transformation_list, sample_a_specific_transform
 from dataclasses import dataclass
 from typing import List, Literal
 
@@ -11,8 +11,8 @@ from open_clip.transformer import TextTransformer
 from transformers import T5EncoderModel
 
 from architecture.models.transformer_models.image_encoders import IMAGE_ENCODERS
-from utils.bbox_utils import get_best_of_two_bboxes
-from utils.sensor_constant_utils import is_a_visual_sensor
+from spoc_utils.bbox_utils import get_best_of_two_bboxes
+from spoc_utils.sensor_constant_utils import is_a_visual_sensor
 
 
 @dataclass

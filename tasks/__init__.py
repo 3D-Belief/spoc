@@ -6,7 +6,7 @@ from typing import Dict, Type
 
 from tasks.abstract_task import AbstractSPOCTask
 from tasks.abstract_task_sampler import AbstractSPOCTaskSampler
-from utils.type_utils import REGISTERED_TASK_PARAMS
+from spoc_utils.type_utils import REGISTERED_TASK_PARAMS
 
 REGISTERED_TASKS: Dict[str, Type[AbstractSPOCTask]] = {}
 

@@ -8,11 +8,12 @@ from typing import Dict, Optional, Sequence, List, Tuple, Iterable, Literal
 
 import numpy as np
 from ai2thor.controller import Controller
+from ai2thor.platform import CloudRendering
 from allenact_plugins.ithor_plugin.ithor_environment import IThorEnvironment
 from shapely import Polygon, GeometryCollection
 
 from environment.spoc_objects import SPOCObject
-from utils.constants.stretch_initialization_utils import (
+from spoc_utils.constants.stretch_initialization_utils import (
     INTEL_VERTICAL_FOV,
     AGENT_RADIUS_LIST,
     AGENT_MOVEMENT_CONSTANT,
@@ -26,7 +27,7 @@ from utils.constants.stretch_initialization_utils import (
     STRETCH_WRIST_BOUND_1,
     STRETCH_WRIST_BOUND_2,
 )
-from utils.data_generation_utils.navigation_utils import (
+from spoc_utils.data_generation_utils.navigation_utils import (
     get_rooms_polymap_and_type,
     get_room_id_from_location,
     rotation_from,
@@ -35,9 +36,9 @@ from utils.data_generation_utils.navigation_utils import (
     is_any_object_sufficiently_visible_and_in_center_frame,
     snap_to_skeleton,
 )
-from utils.distance_calculation_utils import sum_dist_path, position_dist
-from utils.synset_utils import is_hypernym_of
-from utils.type_utils import THORActions, Vector3
+from spoc_utils.distance_calculation_utils import sum_dist_path, position_dist
+from spoc_utils.synset_utils import is_hypernym_of
+from spoc_utils.type_utils import THORActions, Vector3
 
 
 def calc_arm_movement(arm_1, arm_2):
@@ -61,7 +62,7 @@ class StretchController:
         self.room_type_dict: Optional[Dict[str, str]] = None
 
         if initialize_controller:
-            self.controller = Controller(**kwargs)
+            self.controller = Controller(**kwargs, platform=CloudRendering)
             self.initialization_args = kwargs
             assert STRETCH_COMMIT_ID in self.controller._build.commit_id
 
@@ -112,15 +113,12 @@ class StretchController:
 
     @property
     def navigation_camera(self):
-        frame = self.controller.last_event.frame
-        cutoff = round(frame.shape[1] * 6 / 396)
-        return frame[:, cutoff:-cutoff, :]
+        return self.controller.last_event.frame  # (640, 480, 3)
 
     @property
     def manipulation_camera(self):
         frame = self.controller.last_event.third_party_camera_frames[0]
-        cutoff = round(frame.shape[1] * 6 / 396)
-        return frame[:, cutoff:-cutoff, :3]
+        return frame[..., :3]
 
     @property
     def navigation_camera_segmentation(
@@ -133,7 +131,7 @@ class StretchController:
                 " to obtain a navigation_camera_segmentation"
             )
 
-        return self.controller.last_event.instance_masks
+        return self.controller.last_event.instance_segmentation_frame
 
     @property
     def manipulation_camera_segmentation(
@@ -151,14 +149,11 @@ class StretchController:
     @property
     def manipulation_depth_frame(self):
         frame = self.controller.last_event.third_party_depth_frames[0]
-        cutoff = round(frame.shape[1] * 6 / 396)
-        return frame[:, cutoff:-cutoff]
+        return frame
 
     @property
     def navigation_depth_frame(self):
-        frame = self.controller.last_event.depth_frame
-        cutoff = round(frame.shape[1] * 6 / 396)
-        return frame[:, cutoff:-cutoff]
+        return self.controller.last_event.depth_frame
 
     def get_segmentation_mask_of_object(
         self, object_id: str, which_camera: Literal["nav", "manip"]
@@ -171,9 +166,7 @@ class StretchController:
             raise NotImplementedError
 
         if object_id in segmentation_to_look_at:
-            mask = segmentation_to_look_at[object_id]
-            cutoff = round(mask.shape[1] * 6 / 396)
-            result = mask[:, cutoff:-cutoff]
+            result = segmentation_to_look_at[object_id]
             assert result.shape == self.navigation_camera.shape[:2]
             return result
         else:
@@ -221,29 +214,31 @@ class StretchController:
         event = self.controller.step({"action": "VisualizePath", "positions": agent_path})
         self.controller.step({"action": "HideVisualizedPath"})
         path = event.third_party_camera_frames[-1]
-        cutoff = round(path.shape[1] * 6 / 396)
-        return path[:, cutoff:-cutoff, :]
+        return path
 
     def calibrate_agent(self):
         self.step(action="Teleport", horizon=0, standing=True)
+        # rotate_cam_mount = 25.0 + random.choice(np.arange(-2, 2, 0.2))
+        rotate_cam_mount = 0.0 + random.choice(np.arange(-2, 2, 0.2))
+
         self.step(
             action="RotateCameraMount",
-            degrees=27.0 + random.choice(np.arange(-2, 2, 0.2)),
+            degrees=rotate_cam_mount,
             secondary=False,
         )
         self.step(
             action="ChangeFOV",
-            fieldOfView=59 + random.choice(np.arange(-1, 1, 0.1)),
+            fieldOfView=INTEL_VERTICAL_FOV,
             camera="FirstPersonCharacter",
         )
         self.step(
             action="RotateCameraMount",
-            degrees=33.0 + random.choice(np.arange(-2, 2, 0.2)),
+            degrees=rotate_cam_mount,
             secondary=True,
         )
         self.step(
             action="ChangeFOV",
-            fieldOfView=59 + random.choice(np.arange(-1, 1, 0.1)),
+            fieldOfView=INTEL_VERTICAL_FOV,
             camera="SecondaryCamera",
         )
         self.step(action="SetGripperOpenness", openness=30)

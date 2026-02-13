@@ -12,9 +12,9 @@ from allenact_plugins.robothor_plugin.robothor_tasks import spl_metric
 import numpy as np
 
 from tasks.abstract_task import AbstractSPOCTask
-from utils.data_generation_utils.navigation_utils import get_room_id_from_location
-from utils.distance_calculation_utils import position_dist
-from utils.type_utils import Vector3, RewardConfig
+from spoc_utils.data_generation_utils.navigation_utils import get_room_id_from_location
+from spoc_utils.distance_calculation_utils import position_dist
+from spoc_utils.type_utils import Vector3, RewardConfig
 from environment.stretch_controller import StretchController
 
 

@@ -17,7 +17,7 @@ from allenact.base_abstractions.sensor import Sensor
 from allenact.utils.system import get_logger
 from allenact_plugins.ithor_plugin.ithor_environment import IThorEnvironment
 
-from utils.type_utils import RewardConfig
+from spoc_utils.type_utils import RewardConfig
 from training.online.reward.reward_shaper import FetchRewardShaper
 
 

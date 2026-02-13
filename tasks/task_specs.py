@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from online_evaluation.online_evaluation_types_and_utils import (
     normalized_eval_sample_to_task_spec,
 )
-from utils.task_type_mapping_utils import map_task_spec
+from spoc_utils.task_type_mapping_utils import map_task_spec
 
 
 class TaskSpec(TypedDict):

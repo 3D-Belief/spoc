@@ -11,9 +11,9 @@ from torch.nn.utils.rnn import pad_sequence
 from torchvision.transforms import Compose, Normalize
 from transformers import AutoTokenizer
 
-from utils.constants.stretch_initialization_utils import ALL_STRETCH_ACTIONS
-from utils.sensor_constant_utils import is_a_visual_sensor
-from utils.transformation_util import get_full_transformation_list, sample_a_specific_transform
+from spoc_utils.constants.stretch_initialization_utils import ALL_STRETCH_ACTIONS
+from spoc_utils.sensor_constant_utils import is_a_visual_sensor
+from spoc_utils.transformation_util import get_full_transformation_list, sample_a_specific_transform
 
 
 def tensor_image_preprocessor(
