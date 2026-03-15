@@ -74,7 +74,7 @@ def main():
                    help="Directory that contains all scene folders (houses).")
     p.add_argument("--house_groups_dir", type=str, default="house_groups",
                    help="Output directory to write group files.")
-    p.add_argument("--gpus", type=str, default="2-5,7",
+    p.add_argument("--gpus", type=str, default="0-7",
                    help="GPU list: '0-7' or '0,1,3,5' or '0-3,6,7'. Default: 0-7")
     group = p.add_mutually_exclusive_group()
     group.add_argument("--groups_per_gpu", type=int, default=None,

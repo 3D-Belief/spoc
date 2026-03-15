@@ -80,15 +80,15 @@ def main():
     parser = argparse.ArgumentParser(description='Run rerendering in parallel on a single GPU')
     parser.add_argument('--gpu_id', type=int, required=True, help='GPU ID (0-7)')
     parser.add_argument('--house_groups_dir', type=str, 
-                        default="/home/ubuntu/jianwen-us-midwest-1/shulab-jhu/codebase/embodied_tasks/spoc/data/house_groups",
+                        default="./house_groups",
                         help='Directory containing house group files')
     parser.add_argument('--output_base_dir', type=str, 
-                        default="/home/ubuntu/jianwen-us-midwest-1/shulab-jhu/codebase/embodied_tasks/spoc/data/rerendered",
+                        default="./rerendered",
                         help='Base directory for output')
     parser.add_argument('--base_dir', type=str, 
-                        default="/home/ubuntu/jianwen-us-midwest-1/shulab-jhu/codebase/embodied_tasks/spoc/data/all/ObjectNavType/val",
+                        default="./all/ObjectNavType/val",
                         help='Base directory containing house folders')
-    parser.add_argument('--max_workers', type=int, default=20,
+    parser.add_argument('--max_workers', type=int, default=5,
                         help='Maximum number of parallel processes')
     parser.add_argument('--prefix_with_group_name', action='store_true',
                         help='Prefix output directories with group name')

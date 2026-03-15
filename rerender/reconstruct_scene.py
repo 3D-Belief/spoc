@@ -22,11 +22,6 @@ os.chdir(ROOT_DIR)
 
 from spoc_utils.embodied_utils import find_agent_room
 
-# Set environment variables
-os.environ["OBJAVERSE_DATA_DIR"] = "/home/ubuntu/jianwen-us-midwest-1/shulab-jhu/codebase/embodied_tasks/spoc/data"
-os.environ["OBJAVERSE_HOUSES_DIR"] = "/home/ubuntu/jianwen-us-midwest-1/shulab-jhu/codebase/embodied_tasks/spoc/data/houses_2023_07_28"
-# Set current working directory
-
 def convert_action(action_char):
     """
     Convert abbreviated action character/string to full action name and parameters
@@ -107,18 +102,11 @@ def replay_trajectory_with_modalities(house_id, house_data, trajectory_data, out
     # Make sure output directories exist
     os.makedirs(output_dir, exist_ok=True)
     
-    # Create subdirectories for different modalities
-    rgb_dir = os.path.join(output_dir, "rgb")
-    depth_dir = os.path.join(output_dir, "depth")
-    semantic_dir = os.path.join(output_dir, "semantic")
-    # topdown_dir = os.path.join(output_dir, "topdown")
-    pose_dir = os.path.join(output_dir, "pose")
-    
-    os.makedirs(rgb_dir, exist_ok=True)
-    os.makedirs(depth_dir, exist_ok=True)
-    os.makedirs(semantic_dir, exist_ok=True)
-    # os.makedirs(topdown_dir, exist_ok=True)
-    os.makedirs(pose_dir, exist_ok=True)
+    # Prepare in-memory buffers (we will not save per-frame files)
+    rgb_frames = []        # list of HxWx3 uint8 RGB arrays
+    depth_maps = []        # list of HxW float32 depth maps (meters)
+    semantic_frames = []   # list of HxWx3 uint8 semantic color images
+    semantic_meta_all = [] # list of per-frame semantic metadata
     
     # Extract trajectory components
     positions = trajectory_data.get('positions', [])
@@ -211,90 +199,50 @@ def replay_trajectory_with_modalities(house_id, house_data, trajectory_data, out
             step_num (int): The current step/frame number
         """
         
-        # Get RGB image
+        # Get RGB image and crop to square
         rgb_image = controller.navigation_camera
-        
-        # Calculate square crop dimensions
         height, width = rgb_image.shape[:2]
         size = min(height, width)
         start_x = (width - size) // 2
         start_y = (height - size) // 2
-        
-        # Crop RGB image to square
         rgb_image_square = rgb_image[start_y:start_y+size, start_x:start_x+size]
-        
-        # Save cropped RGB image
-        rgb_path = os.path.join(rgb_dir, f"frame_{step_num:04d}.png")
-        Image.fromarray(rgb_image_square).save(rgb_path)
-        
-        # Save Depth image - using navigation_depth_frame
+
+        # Append RGB frame (uint8 RGB)
+        rgb_frames.append(rgb_image_square.copy())
+
+        # Save Depth image into memory - using navigation_depth_frame
         if hasattr(controller, 'navigation_depth_frame'):
             depth_image = controller.navigation_depth_frame
-            
-            # Crop depth image to the same square dimensions
-            if len(depth_image.shape) == 2:  # Check if it's a 2D array
+            if len(depth_image.shape) == 2:
                 depth_image_square = depth_image[start_y:start_y+size, start_x:start_x+size]
             else:
                 depth_image_square = depth_image[start_y:start_y+size, start_x:start_x+size, :]
-            
-            # # Save raw depth data (cropped)
-            # depth_raw_path = os.path.join(depth_dir, f"frame_{step_num:04d}_raw.npy")
-            # np.save(depth_raw_path, depth_image_square)
-            
-            # if np.max(depth_image_square) > 0:
-            #     depth_norm = (depth_image_square / np.max(depth_image_square) * 255).astype(np.uint8)
-            # else:
-            #     depth_norm = np.zeros_like(depth_image_square, dtype=np.uint8)
-
-            depth_image_square = depth_image_square.astype(np.float32)
-
-            # handle invalids
-            invalid = ~np.isfinite(depth_image_square) | (depth_image_square < 0)
-            invalid_val = 0
-            scale = 1000.0  # scale factor to convert to mm
-
-            depth_u16 = np.round(depth_image_square * scale).astype(np.int64)  # wider temp to avoid wrap
-            depth_u16[invalid] = invalid_val
-            depth_u16 = np.clip(depth_u16, 0, 65535).astype(np.uint16)
-            
-            # Save grayscale depth image (cropped)
-            depth_gray_path = os.path.join(depth_dir, f"frame_{step_num:04d}.png")
-            cv2.imwrite(depth_gray_path, depth_u16)
+            # store as float32 meters (keep invalids as NaN or negative as-is)
+            depth_maps.append(depth_image_square.astype(np.float32))
         
-        # Save Instance Segmentation - using navigation_camera_segmentation
+        # Save Instance Segmentation into memory
         if hasattr(controller, 'navigation_camera_segmentation'):
-            # Get the segmentation data
             seg_frame = controller.navigation_camera_segmentation
-            
-            # Crop segmentation frame to square
             seg_frame_square = seg_frame[start_y:start_y+size, start_x:start_x+size]
-            
-            # # Save raw data (cropped)
-            # seg_raw_path = os.path.join(semantic_dir, f"frame_{step_num:04d}_raw.npy")
-            # np.save(seg_raw_path, seg_frame_square)
-            
-            # Dictionary to store object info for this frame
+
+            # Build per-frame object metadata
             frame_objects = {}
-            
-            # Process object IDs directly
             colors = np.unique(seg_frame_square.reshape(-1, 3), axis=0)
             colors = {tuple(int(c) for c in color) for color in colors}
             for obj_color in colors:
                 obj_id = controller.controller.last_event.color_to_object_id.get(obj_color, None)
                 if obj_id is None:
                     continue
-                # If we haven't processed this object yet in this frame
                 if obj_id not in frame_objects:
-                    # Try to match with scene objects if possible
+                    obj_name = "Unknown"
                     if hasattr(controller, 'current_scene_json') and 'objects' in controller.current_scene_json:
                         scene_graph = controller.current_scene_json['objects']
-                        obj_name = find_object_info(scene_graph, obj_id)
-                        if obj_name is None:
-                            obj_name = "Unknown"
-                        if "Obja" in obj_name:
-                            obj_name = obj_name.replace("Obja", "")
-                    
-                    # Store object info
+                        found = find_object_info(scene_graph, obj_id)
+                        if found is not None:
+                            obj_name = found
+                            if "Obja" in obj_name:
+                                obj_name = obj_name.replace("Obja", "")
+
                     frame_objects[obj_id] = {
                         "color": tuple(obj_color),
                         "rgb_string": f"rgb({obj_color[0]}, {obj_color[1]}, {obj_color[2]})",
@@ -302,67 +250,28 @@ def replay_trajectory_with_modalities(house_id, house_data, trajectory_data, out
                         "name": obj_name,
                         "instance_id": obj_id
                     }
-            
-            # Save the visualization
-            seg_path = os.path.join(semantic_dir, f"frame_{step_num:04d}.png")
-            Image.fromarray(seg_frame_square).save(seg_path)
-            
-            # Save object metadata
+
+            # Append semantic frame and metadata (do not write individual files)
+            semantic_frames.append(seg_frame_square.copy())
             metadata = {
+                "step": int(step_num),
                 "scene_metadata": {
                     "total_objects": len(frame_objects),
                     "object_categories": list(set(obj['name'] for obj in frame_objects.values()))
                 },
                 "objects": frame_objects
             }
-
-            meta_path = os.path.join(semantic_dir, f"frame_{step_num:04d}_meta.json")
-            with open(meta_path, 'w') as f:
-                json.dump(metadata, f, indent=2)
-
-            # Save object mask
-            kept_colors = [info["color"] for info in frame_objects.values() if info["name"] != "Unknown"]
-
-            H, W = seg_frame_square.shape[:2]
-            mask_path = os.path.join(semantic_dir, f"frame_{step_num:04d}_object_binary_mask.png")
-
-            if len(kept_colors) == 0:
-                # No known objects this frame -> all zeros
-                Image.fromarray(np.zeros((H, W), dtype=np.uint8)).save(mask_path)
-            else:
-                # Convert the color image to a single 24-bit code per pixel: (R<<16)|(G<<8)|B
-                seg_codes = (
-                    seg_frame_square[..., 0].astype(np.uint32) << 16
-                    | seg_frame_square[..., 1].astype(np.uint32) << 8
-                    | seg_frame_square[..., 2].astype(np.uint32)
-                )
-
-                # Codes we want to keep
-                keep_codes = np.array(
-                    [(r << 16) | (g << 8) | b for (r, g, b) in kept_colors], dtype=np.uint32
-                )
-
-                # Boolean mask: True where pixel color matches any kept color
-                mask_bool = np.isin(seg_codes, keep_codes)
-
-                # Save as 0/255 PNG
-                mask_u8 = (mask_bool.astype(np.uint8) * 255)
-                Image.fromarray(mask_u8).save(mask_path)
-            
-            print(f"Created segmentation visualization with {len(frame_objects)} objects")
+            semantic_meta_all.append(metadata)
+            print(f"Collected segmentation metadata with {len(frame_objects)} objects")
         
         # # Save top down view
         # top_down_frame = get_top_down_frame()
         # top_down_path = os.path.join(topdown_dir, f"frame_{step_num:04d}_top_down.png")
         # top_down_frame.save(top_down_path)
 
-        # Save camera information for the current frame
+        # Save camera information for the current frame (keep in memory only)
         if step_num < len(positions) and step_num < len(rotations):
             pose = nav_camera_pose(controller.controller.last_event)
-            # save as npy array
-            pose_path = os.path.join(pose_dir, f"frame_{step_num:04d}_pose.npy")
-            np.save(pose_path, pose)
-            # also keep in memory for all_poses.npz
             all_poses.append(pose.astype(np.float32))
             all_pose_steps.append(int(step_num))
         
@@ -538,7 +447,7 @@ def replay_trajectory_with_modalities(house_id, house_data, trajectory_data, out
     top_down_image = get_top_down_frame()
     top_down_path = os.path.join(output_dir, "top_down_view_initial.png")
     top_down_image.save(top_down_path)
-    
+
     # Execute all processed actions
     for step, action_str in enumerate(processed_actions, 1):  # Start at 1 to match the frame count
         if not action_str:
@@ -599,6 +508,43 @@ def replay_trajectory_with_modalities(house_id, house_data, trajectory_data, out
     np.savez_compressed(os.path.join(output_dir, "all_poses.npz"),
                         poses=poses_arr,
                         steps=steps_arr)
+
+    # RGB video
+    try:
+        if len(rgb_frames) > 0:
+            create_video_from_arrays(rgb_frames, os.path.join(output_dir, "rgb_trajectory.mp4"), fps=10)
+    except Exception as e:
+        print(f"Warning: failed to write RGB video: {e}")
+
+    # Semantic video
+    try:
+        if len(semantic_frames) > 0:
+            create_video_from_arrays(semantic_frames, os.path.join(output_dir, "semantic_trajectory.mp4"), fps=10)
+    except Exception as e:
+        print(f"Warning: failed to write semantic video: {e}")
+
+    # Save combined semantic metadata JSON
+    try:
+        meta_path = os.path.join(output_dir, "all_semantic_meta.json")
+        with open(meta_path, 'w') as f:
+            json.dump(semantic_meta_all, f, indent=2)
+    except Exception as e:
+        print(f"Warning: failed to write semantic metadata JSON: {e}")
+
+    # Save all depth maps as a single npz
+    try:
+        if len(depth_maps) > 0:
+            depths_arr = np.stack(depth_maps, axis=0).astype(np.float32)
+            depth_steps = np.asarray(all_pose_steps[:depths_arr.shape[0]], dtype=np.int32) if len(all_pose_steps) > 0 else np.arange(depths_arr.shape[0], dtype=np.int32)
+        else:
+            depths_arr = np.zeros((0,), dtype=np.float32)
+            depth_steps = np.zeros((0,), dtype=np.int32)
+
+        np.savez_compressed(os.path.join(output_dir, "all_depths.npz"),
+                            depths=depths_arr,
+                            steps=depth_steps)
+    except Exception as e:
+        print(f"Warning: failed to write depth npz: {e}")
     
     # Extract last position and rotation
     if len(positions) > 0:
@@ -677,6 +623,36 @@ def create_video_from_frames(frames_dir, output_path, fps=10):
         if img is not None:
             video.write(img)
     
+    video.release()
+    print(f"Created video at {output_path} with dimensions {width}x{height}")
+    return True
+
+
+def create_video_from_arrays(frames, output_path, fps=10):
+    """
+    Create a video from a list of RGB numpy arrays (HxWx3 uint8, RGB).
+    """
+    if not frames:
+        print(f"No frames to write for {output_path}")
+        return False
+
+    first = frames[0]
+    if first is None:
+        print(f"First frame is None for {output_path}")
+        return False
+
+    height, width = first.shape[:2]
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    video = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+    for fr in frames:
+        # Convert RGB to BGR for OpenCV
+        if fr.shape[2] == 3:
+            bgr = cv2.cvtColor(fr, cv2.COLOR_RGB2BGR)
+        else:
+            bgr = fr
+        video.write(bgr)
+
     video.release()
     print(f"Created video at {output_path} with dimensions {width}x{height}")
     return True
@@ -954,23 +930,21 @@ def process_all_houses_and_episodes(base_dir, output_base_dir, resume=True, star
                 
                 # Check if this episode is already fully processed
                 trajectory_metadata_path = os.path.join(episode_output_dir, "trajectory_metadata.json")
-                videos_path = os.path.join(episode_output_dir, "videos")
                 
                 if resume and os.path.exists(trajectory_metadata_path) and os.path.exists(videos_path):
                     try:
                         with open(trajectory_metadata_path, 'r') as f:
                             metadata = json.load(f)
                         
-                        # Check if videos for all modalities exist
-                        all_videos_exist = True
-                        for modality, video_name in [
-                            ("rgb", "rgb_trajectory.mp4"),
-                            ("depth", "depth_trajectory.mp4"), 
-                            ("semantic", "semantic_trajectory.mp4")
-                        ]:
-                            if not os.path.exists(os.path.join(videos_path, video_name)):
-                                all_videos_exist = False
-                                break
+                        # Check for expected outputs (rgb video, semantic video, depth npz, poses npz, semantic meta)
+                        expected_files = [
+                            os.path.join(episode_output_dir, "rgb_trajectory.mp4"),
+                            os.path.join(episode_output_dir, "semantic_trajectory.mp4"),
+                            os.path.join(episode_output_dir, "all_depths.npz"),
+                            os.path.join(episode_output_dir, "all_poses.npz"),
+                            os.path.join(episode_output_dir, "all_semantic_meta.json"),
+                        ]
+                        all_videos_exist = all(os.path.exists(p) for p in expected_files)
                         
                         if all_videos_exist and metadata.get('frames', 0) > 0:
                             print(f"  Skipping episode {episode_idx} - already fully processed")
@@ -1055,29 +1029,8 @@ def process_all_houses_and_episodes(base_dir, output_base_dir, resume=True, star
                         
                         trajectory_data['object_ids'] = object_ids
                 
-                # Replay the trajectory with all modalities
+                # Replay the trajectory with all modalities (this will write videos and combined outputs into episode_output_dir)
                 frame_info = replay_trajectory_with_modalities(house_id, house_data, trajectory_data, episode_output_dir)
-                
-                # Create videos if frames were generated
-                if frame_info['frame_count'] > 0:
-                    videos_dir = os.path.join(episode_output_dir, "videos")
-                    os.makedirs(videos_dir, exist_ok=True)
-                    
-                    # Create videos for each modality
-                    modality_dirs = [
-                        ("rgb", "rgb_trajectory.mp4"),
-                        ("depth", "depth_trajectory.mp4"),
-                        ("semantic", "semantic_trajectory.mp4"),
-                        # ("top_down", "top_down_view.mp4")
-                    ]
-                    
-                    for modality_dir, video_name in modality_dirs:
-                        dir_path = os.path.join(episode_output_dir, modality_dir)
-                        if os.path.exists(dir_path) and os.listdir(dir_path):
-                            create_video_from_frames(
-                                dir_path, 
-                                os.path.join(videos_dir, video_name)
-                            )
                 
                 # Add episode to house summary if not already there
                 exists_in_summary = False
@@ -1267,31 +1220,12 @@ def process_one_episode(house_index=0, episode_idx="0", hdf5_path=None):
     # Replay the complete trajectory with RGB, Depth, and Semantic modalities
     print("Replaying complete trajectory with all modalities...")
     frame_info = replay_trajectory_with_modalities(house_id, house_data, trajectory_data, output_dir)
-    
-    # Create videos from the generated frames
-    if frame_info['frame_count'] > 0:
-        print("Creating videos from frames...")
-        videos_dir = os.path.join(output_dir, "videos")
-        os.makedirs(videos_dir, exist_ok=True)
-        
-        # Create videos for each modality
-        modality_dirs = [
-            ("rgb", "rgb_trajectory.mp4"),
-            ("depth", "depth_trajectory.mp4"),
-            ("semantic", "semantic_trajectory.mp4"),
-        ]
-        
-        for modality_dir, video_name in modality_dirs:
-            dir_path = os.path.join(output_dir, modality_dir)
-            if os.path.exists(dir_path) and os.listdir(dir_path):
-                create_video_from_frames(
-                    dir_path, 
-                    os.path.join(videos_dir, video_name)
-                )
+    # replay_trajectory_with_modalities now writes videos and combined artifacts (no per-frame files)
     
     print(f"Reconstruction complete! Generated {frame_info['frame_count']} frames.")
     print(f"Output saved to {output_dir}")
     
+    videos_dir = os.path.join(output_dir, "videos")
     if frame_info['frame_count'] > 0:
         print(f"Videos saved to {videos_dir}")
     
@@ -1311,7 +1245,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Reconstruct SPOC trajectories with additional modalities')
     parser.add_argument('--process_all', action='store_true', help='Process all houses and episodes')
     parser.add_argument('--base_dir', type=str, 
-                       default="/home/ubuntu/jianwen-us-midwest-1/shulab-jhu/codebase/embodied_tasks/spoc/data/all/ObjectNavType/train",
+                       default="./",
                        help='Base directory containing house folders')
     parser.add_argument('--output_dir', type=str, 
                        default="data/test",
